@@ -1,0 +1,11 @@
+# Kernumgebung: YOLO-Objektdetektion + Auswahllogik + Standbild/Live (Maus)
+# Empfohlen: eigene venv (z. B. Python 3.10/3.11)
+ultralytics>=8.0.0        # YOLOv8 (zieht PyTorch als Abhängigkeit)
+opencv-python>=4.8.0      # Kamera/Anzeige (GUI-Variante, nicht -headless)
+numpy>=1.24
+
+# Tests
+pytest>=7.0
+
+# Dashboard-Oberfläche (dashboard.py)
+customtkinter>=5.2.0

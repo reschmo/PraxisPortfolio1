@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Modelle & Gewichte (laden automatisch – nicht versionieren)
+*.pt
+models/*.pt
+models/*.onnx
+models/*.npz
+models/*.csv
+
+# Ausgaben / generierte Dateien
+*.mp4
+out*.jpg
+benchmark_results.md
+
+# --- Dokumentation / Berichte / Präsentation: NICHT ins GitHub-Repo ---
+# (nur der lauffähige Quellcode soll geteilt werden)
+*.docx
+*.pptx
+poster_*.pdf
+AENDERUNGSPLAN_DOKU.md
+KONZEPTE_ERKLAERT.md
+PRAESENTATION_VORBEREITUNG.md
+PROJEKT_UEBERSICHT.md
+doku_*.png
+*.svg
+
+# Streu-/Testbilder im Wurzelverzeichnis (der Ordner assets/ bleibt erhalten!)
+/fig1.jpg
+/test0.jpg
+/test1.jpg
+/test2.jpg
+/test3.jpg
+/test4.jpg
+
+# OS/IDE
+.DS_Store
+.idea/
+.vscode/
