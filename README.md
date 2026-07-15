@@ -1,14 +1,12 @@
 # Blickbasierte Objektauswahl für assistive Roboterarme
 
-Modulare, nachvollziehbare Demo für den **Auswahlschritt**: Ein Nutzer *schaut ein
-Objekt an*, eine Kamera *erkennt Objekte* (YOLO), und eine Logik entscheidet,
-**welches Objekt gemeint ist – oder fragt nach**.
+Dieses Projekt untersucht den Auswahlschritt bei einer blickbasierten Steuerung für assistive Roboterarme. Der Nutzer betrachtet ein Objekt, YOLO erkennt die sichtbaren Objekte und die Auswahllogik entscheidet, welches Objekt gemeint ist. Ist die Zuordnung nicht eindeutig, werden mehrere Kandidaten angezeigt oder es erfolgt keine Auswahl.
 
-Praxisprojekt & Portfolio 1, FH Salzburg · Autor: Mohammad Akhlas Ahmadi ·
-Betreuer: Prof. Simon Kirchgasser.
+**Praxisprojekt & Portfolio 1, FH Salzburg**  
+Autor: Mohammad Akhlas Ahmadi  
+Betreuer: Prof. Simon Kirchgasser
 
-> Kein realer Roboterarm, keine Greifplanung, keine 3D-Lokalisierung – nur der
-> Auswahlschritt.
+Der Schwerpunkt liegt ausschließlich auf der Objektauswahl. Ein realer Roboterarm, die Greifplanung und eine 3D-Lokalisierung sind nicht Bestandteil des Projekts.
 
 ---
 
@@ -16,44 +14,60 @@ Betreuer: Prof. Simon Kirchgasser.
 
 | Baustein | Status |
 | --- | --- |
-| Auswahllogik (Exact + Coarse, Zustände direct/assisted/none) | ✅ fertig, per Unit-Tests geprüft |
-| YOLO-Wrapper (einheitliches Detection-Format) | ✅ fertig |
-| Maus-Blickquelle (Referenz) | ✅ fertig |
-| Visualisierung (Boxen, Blick, Zustand) | ✅ fertig, auf Beispielbild geprüft |
-| Standbild-App (`app_image`) | ✅ fertig (interaktiv + headless) |
-| Livebild-App (`app_live`) | ✅ fertig |
-| DL-Blickquelle (MobileGaze über uniface) + Kalibrierung | ✅ implementiert; Gewichte laden automatisch, braucht Webcam zum Testen |
+| Auswahllogik mit Exact- und Coarse-Gaze sowie den Zuständen `direct`, `assisted` und `none` | fertig und mit Unit-Tests geprüft |
+| YOLO-Wrapper mit einheitlichem Detection-Format | fertig |
+| Maus als Referenz für die Blickquelle | fertig |
+| Visualisierung von Bounding-Boxen, Blickpunkt und Auswahlzustand | fertig und mit einem Beispielbild geprüft |
+| Standbild-Anwendung `app_image` | fertig, interaktiv und headless nutzbar |
+| Livebild-Anwendung `app_live` | fertig |
+| DL-Blickquelle mit MobileGaze über uniface und Kalibrierung | implementiert; für den Test ist eine Webcam erforderlich |
 
-Die Beispielbilder in `examples/` zeigen die drei Zustände (mit Platzhalter-Objekten
-zur Illustration der Logik).
+Die Bilder im Ordner `examples/` zeigen die drei möglichen Auswahlzustände. Die dort verwendeten Objekte dienen zur Veranschaulichung der Logik.
 
 ---
 
-## Kernidee / Architektur (bewusst modular)
+## Aufbau des Systems
 
-Drei klar getrennte Komponenten:
+Das System besteht aus drei getrennten Komponenten:
 
-1. **Blickquelle** → liefert nur einen Punkt `gaze_point = (x, y)`
-2. **Objektdetektion (YOLO)** → Liste von Objekten `{label, confidence, bbox, center}`
-3. **Auswahllogik** → nimmt Blickpunkt + Objekte → Zustand `direct` / `assisted` / `none`
+1. **Blickquelle**  
+   Liefert einen Blickpunkt in der Form `gaze_point = (x, y)`.
 
-> Die Trennung ist zentral: Die Blickquelle ist **austauschbar** (Maus,
-> Webcam-DL-Modell, später Eye-Tracker). Eine neue Quelle muss *nur*
-> `gaze_point = (x, y)` liefern – der Rest bleibt gleich.
+2. **Objektdetektion mit YOLO**  
+   Liefert eine Liste erkannter Objekte mit `label`, `confidence`, `bbox` und `center`.
 
-**Die drei Zustände**
+3. **Auswahllogik**  
+   Verknüpft den Blickpunkt mit den erkannten Objekten und gibt einen der Zustände `direct`, `assisted` oder `none` zurück.
 
-- `direct` – genau ein Objekt eindeutig → auswählen
-- `assisted` – mehrere plausibel → Kandidaten anzeigen (nicht automatisch entscheiden)
-- `none` – kein ausreichend plausibles Objekt
+Durch diese Trennung kann die Blickquelle ausgetauscht werden. Aktuell stehen die Maus und eine Webcam-basierte Blickschätzung zur Verfügung. Später könnte auch ein externer Eye-Tracker eingebunden werden. Die übrigen Komponenten müssen dafür nicht geändert werden, solange die Blickquelle einen Punkt `(x, y)` liefert.
 
-**Zwei Auswahlstrategien** (beide auf denselben YOLO-Detektionen)
+### Auswahlzustände
 
-- **Exact-Gaze** – Blick = Punkt. Euklidische Distanz zum Objektzentrum:
-  nächstes Objekt `< 80 px` → `direct`; liegt ein zweites `≤ 40 px` weiter → `assisted`.
-- **Coarse-Gaze** – Blick = Bereich. Kreis (Standard `90 px`) um den Punkt;
-  Boxen, die den Kreis schneiden, sind Kandidaten: 1 → `direct`, mehrere →
-  `assisted`, keiner → `none`. **Sicherheitsnetz** für ungenaue Webcam-Blicke.
+- `direct`: Ein Objekt kann eindeutig zugeordnet werden.
+- `assisted`: Mehrere Objekte sind ähnlich plausibel und werden als Kandidaten angezeigt.
+- `none`: Es konnte kein ausreichend plausibles Objekt zugeordnet werden.
+
+### Auswahlstrategien
+
+Beide Strategien verwenden dieselben YOLO-Detektionen.
+
+**Exact-Gaze**
+
+Der Blick wird als einzelner Punkt behandelt. Für jedes erkannte Objekt wird die euklidische Distanz zwischen Blickpunkt und Objektzentrum berechnet.
+
+- Liegt das nächste Objekt weniger als `80 px` entfernt, ist eine direkte Auswahl möglich.
+- Liegt ein zweites Objekt höchstens `40 px` weiter entfernt, wird der Zustand `assisted` verwendet.
+- Ist kein Objekt nah genug, lautet der Zustand `none`.
+
+**Coarse-Gaze**
+
+Der Blick wird als Bereich betrachtet. Um den Blickpunkt wird ein Kreis mit einem Standardradius von `90 px` gelegt.
+
+- Schneidet der Kreis genau eine Bounding-Box, wird `direct` zurückgegeben.
+- Schneidet er mehrere Bounding-Boxen, wird `assisted` zurückgegeben.
+- Schneidet er keine Bounding-Box, wird `none` zurückgegeben.
+
+Diese Strategie ist für ungenauere Blickschätzungen gedacht, wie sie bei einer Webcam auftreten können.
 
 ---
 
@@ -61,202 +75,243 @@ Drei klar getrennte Komponenten:
 
 ```text
 src/
-  config.py              # Schwellen, Modellnamen, Pfade, Farben
+  config.py              # Schwellenwerte, Modellnamen, Pfade und Farben
   detection/
-    types.py             # einheitliches Detection-Format (YOLO-unabhängig)
-    yolo.py              # YOLO laden + Inferenz -> Detection
+    types.py             # einheitliches Detection-Format
+    yolo.py              # YOLO laden und Inferenz ausführen
   gaze/
     base.py              # Interface: get_gaze_point() -> (x, y)
-    mouse_gaze.py        # Maus als Blickquelle (Referenz)
-    dl_gaze.py           # DL-Blickquelle (yakhyo/MobileGaze, ONNX) + Kalibrierung
+    mouse_gaze.py        # Maus als Blickquelle
+    dl_gaze.py           # DL-Blickquelle mit MobileGaze und Kalibrierung
   selection/
-    result.py            # SelectionState / SelectionResult
-    exact.py             # select_object(gaze, detections)
-    coarse.py            # select_with_attention_area(gaze, detections, radius)
-  viz/draw.py            # Zeichnen (Boxen, Blick, Zustand)
-  app_image.py           # Standbild + YOLO + Blickquelle
-  app_live.py            # Livebild + YOLO + Blickquelle
-tests/                   # Unit-Tests der Auswahllogik + Kalibrierung
+    result.py            # SelectionState und SelectionResult
+    exact.py             # Exact-Gaze-Auswahl
+    coarse.py            # Coarse-Gaze-Auswahl
+  viz/
+    draw.py              # Darstellung von Boxen, Blickpunkt und Zustand
+  app_image.py           # Anwendung für Standbilder
+  app_live.py            # Anwendung für Livebilder
+tests/                   # Tests für Auswahllogik und Kalibrierung
 assets/test.jpg          # Beispielbild
-examples/                # gerenderte Beispielausgaben (drei Zustände)
+examples/                # Beispielausgaben für die drei Zustände
 ```
 
 ---
 
 ## Installation
 
-Zwei getrennte Umgebungen vermeiden Paketkonflikte (YOLO/PyTorch vs. Gaze/ONNX).
-
-**1) Kernumgebung (YOLO + Auswahllogik + Standbild/Live mit Maus)**
+Für das Projekt kann eine virtuelle Python-Umgebung verwendet werden.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+```
+
+Aktivierung unter Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Aktivierung unter Linux oder macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Danach werden die Hauptabhängigkeiten installiert:
+
+```bash
 pip install -r requirements.txt
 ```
 
-Das YOLO-Modell (`yolov8m.pt`) wird beim ersten Start automatisch geladen.
+Das YOLO-Modell `yolov8m.pt` wird beim ersten Start automatisch geladen.
 
-**2) DL-Blickquelle (MobileGaze über uniface)** – darf in **dieselbe** venv:
+Für die DL-Blickquelle wird zusätzlich `uniface` benötigt:
 
 ```bash
-pip install "uniface[cpu]"     # NVIDIA-GPU: "uniface[gpu]"
+pip install "uniface[cpu]"
 ```
 
-Kein manueller Download: Die Blick- und Gesichtsmodelle werden beim ersten Start
-automatisch geladen (Cache: `~/.uniface/models`). Python 3.10+ genügt.
+Bei einer unterstützten NVIDIA-GPU kann stattdessen folgende Variante verwendet werden:
 
-> Optional/fortgeschritten: Statt uniface können rohe ONNX-Gewichte von
-> [yakhyo/gaze-estimation](https://github.com/yakhyo/gaze-estimation/releases)
-> genutzt werden – dann `--model models/<datei>.onnx` angeben.
+```bash
+pip install "uniface[gpu]"
+```
+
+Die Modelle für Gesichts- und Blickschätzung werden beim ersten Start automatisch geladen und unter `~/.uniface/models` gespeichert. Es ist kein manueller Download erforderlich.
+
+Alternativ können ONNX-Gewichte aus dem Projekt `yakhyo/gaze-estimation` verwendet werden:
+
+```bash
+python -m src.app_live --source 0 --gaze dl --model models/<datei>.onnx
+```
 
 ---
 
 ## Nutzung
 
-Alle Befehle vom Projekt-Wurzelverzeichnis aus.
+Alle Befehle werden im Wurzelverzeichnis des Projekts ausgeführt.
 
-### Die vier Kombinationen (didaktischer Aufbau)
+### Verfügbare Kombinationen
 
-| # | Eingabe | Blickquelle | Befehl |
-| --- | --- | --- | --- |
-| 1 | Bild | Maus (Referenz) | `python -m src.app_image --image assets/test1.png` |
-| 2 | Webcam | Maus | `python -m src.app_live --source 0 --gaze mouse` |
-| 3 | Bild | Eye-Tracking | `python -m src.app_image --image assets/test1.png --gaze dl` |
-| 4 | Webcam | Eye-Tracking | `python -m src.app_live --source 0 --gaze dl` |
+| Eingabe | Blickquelle | Befehl |
+| --- | --- | --- |
+| Bild | Maus | `python -m src.app_image --image assets/test1.png` |
+| Webcam | Maus | `python -m src.app_live --source 0 --gaze mouse` |
+| Bild | Eye-Tracking | `python -m src.app_image --image assets/test1.png --gaze dl` |
+| Webcam | Eye-Tracking | `python -m src.app_live --source 0 --gaze dl` |
 
-Für #3 und #4 zuerst **einmal im Live-Modus kalibrieren** (`k`); die Kalibrierung
-wird gespeichert und von #3 automatisch geladen. In jeder Kombination gilt:
-`e`/`c` = Exact/Coarse, `+`/`-` = Suchbereich größer/kleiner, `q` = beenden.
-Die Modus-Logik (direct/assisted/none) ist überall identisch.
+Für die Eye-Tracking-Varianten muss zunächst im Live-Modus kalibriert werden. Mit der Taste `k` wird die Kalibrierung gestartet. Die Kalibrierungsdaten werden gespeichert und beim nächsten Start wieder geladen.
 
-**Standbild (interaktiv)** – Maus bewegen = Blick:
+In allen Varianten gelten dieselben Auswahlzustände und dieselbe Auswahllogik.
+
+### Standbild mit Maussteuerung
 
 ```bash
 python -m src.app_image --image assets/test.jpg
 ```
 
-**Standbild (headless)** – rendert ein annotiertes Bild ohne Fenster:
+Der Mauszeiger dient dabei als Referenz für den Blickpunkt.
+
+### Standbild ohne Fenster
 
 ```bash
-python -m src.app_image --image assets/test.jpg --headless \
-    --gaze 250,650 --strategy coarse --out out.jpg
+python -m src.app_image --image assets/test.jpg --headless     --gaze 250,650 --strategy coarse --out out.jpg
 ```
 
-**Livebild – Maus als Blickquelle** (kein Modell nötig):
+Dieser Befehl erzeugt ein annotiertes Ausgabebild, ohne ein Fenster zu öffnen.
+
+### Livebild mit Maus
 
 ```bash
 python -m src.app_live --source 0 --gaze mouse
 ```
 
-**Livebild – DL-Blickquelle** (MobileGaze, lädt Gewichte automatisch):
+### Livebild mit DL-Blickschätzung
 
 ```bash
-python -m src.app_live --source 0 --gaze dl                 # 9 Punkte (3x3)
-python -m src.app_live --source 0 --gaze dl --calib-grid 5  # 25 Punkte (5x5)
+python -m src.app_live --source 0 --gaze dl
 ```
 
-Im Fenster: `k` = kalibrieren (Punkte nacheinander ~1 s anschauen). Danach
-steuern deine Augen den Blickpunkt; die Kalibrierung wird gespeichert und beim
-nächsten Start automatisch geladen. `v` = **Genauigkeit messen**: du schaust auf
-unabhängige Testpunkte, das Programm nennt den **mittleren Blickfehler** (in px
-und % der Bilddiagonale) und schreibt ihn nach `models/calibration_eval.csv` –
-so lassen sich z. B. 9 vs. 25 Punkte objektiv vergleichen.
-
-**Kopf-aware Kalibrierung** (Experiment): mit `--head-aware` nutzt die
-Kalibrierung zusätzlich die Kopfposition/-größe (aus der Gesichts-Box), um
-Kopfbewegung/Abstand zu kompensieren. Dabei beim Kalibrieren den **Kopf leicht
-bewegen**:
+Standardmäßig wird eine Kalibrierung mit neun Punkten verwendet. Für ein Raster mit 25 Punkten:
 
 ```bash
-python -m src.app_live --source 0 --gaze dl --head-aware    # 9 Punkte, kopf-aware
+python -m src.app_live --source 0 --gaze dl --calib-grid 5
 ```
 
-Der Modus (`standard`/`head`) steht als Spalte in `calibration_eval.csv`, sodass
-sich 9-Standard vs. 9-kopf-aware sauber vergleichen lässt. Der Effekt zeigt sich
-vor allem, wenn man den Kopf **bewegt** (bei ruhigem Kopf sind beide ähnlich).
+Mit `k` wird die Kalibrierung gestartet. Die Punkte werden nacheinander für ungefähr eine Sekunde betrachtet. Anschließend steuert die Blickschätzung den angezeigten Blickpunkt.
 
-**Steuerung (Tastatur)**
+Mit `v` kann die Genauigkeit an unabhängigen Testpunkten gemessen werden. Das Programm berechnet den mittleren Blickfehler in Pixeln und als Anteil der Bilddiagonale. Die Ergebnisse werden in `models/calibration_eval.csv` gespeichert. Dadurch können beispielsweise die 9-Punkt- und die 25-Punkt-Kalibrierung miteinander verglichen werden.
 
-| Taste | Wirkung |
+### Kalibrierung mit Kopfmerkmalen
+
+Mit der Option `--head-aware` werden zusätzlich die Position und Größe des erkannten Gesichts berücksichtigt:
+
+```bash
+python -m src.app_live --source 0 --gaze dl --head-aware
+```
+
+Während der Kalibrierung sollte der Kopf leicht bewegt werden. In der Datei `calibration_eval.csv` wird der verwendete Modus in der Spalte `standard` beziehungsweise `head` gespeichert. Dadurch lassen sich beide Varianten getrennt auswerten.
+
+### Tastatursteuerung
+
+| Taste | Funktion |
 | --- | --- |
-| `e` | Exact-Gaze |
-| `c` | Coarse-Gaze |
-| `a` | Blickkreis ein/aus |
-| `k` | Kalibrierung (nur DL-Blickquelle) |
-| `v` | Genauigkeit messen + CSV (nur DL-Blickquelle) |
-| `q` | Beenden |
+| `e` | Exact-Gaze aktivieren |
+| `c` | Coarse-Gaze aktivieren |
+| `a` | Blickkreis ein- oder ausblenden |
+| `k` | Kalibrierung starten |
+| `v` | Genauigkeitsmessung starten und Ergebnis als CSV speichern |
+| `+` / `-` | Suchbereich vergrößern oder verkleinern |
+| `q` | Programm beenden |
 
 ---
 
 ## Beispiele
 
-`examples/` enthält gerenderte Ausgaben der drei Zustände:
+Der Ordner `examples/` enthält Beispielausgaben für die drei Zustände:
 
-- `beispiel_exact_direct.jpg` – Exact-Gaze wählt ein Objekt eindeutig (`direct`).
-- `beispiel_coarse_assisted.jpg` – Coarse-Gaze zeigt mehrere Kandidaten (`assisted`).
-- `beispiel_exact_none.jpg` – kein Objekt nah genug (`none`).
+- `beispiel_exact_direct.jpg`: eindeutige Auswahl mit Exact-Gaze
+- `beispiel_coarse_assisted.jpg`: mehrere Kandidaten mit Coarse-Gaze
+- `beispiel_exact_none.jpg`: kein ausreichend nahes Objekt
 
 ---
 
-## Wichtige Parameter (`src/config.py`)
+## Wichtige Parameter
+
+Die wichtigsten Einstellungen befinden sich in `src/config.py`.
 
 | Parameter | Startwert | Bedeutung |
 | --- | --- | --- |
-| `YOLO_IMGSZ` | `960` | Inferenz-Bildgröße |
-| `YOLO_CONF` | `0.35` | Konfidenzschwelle |
-| `EXACT_DIRECT_MAX_DIST` | `80` px | Exact: `direct`, wenn nächstes Objekt näher |
-| `EXACT_AMBIGUITY_MARGIN` | `40` px | Exact: zweites Objekt so nah → `assisted` |
-| `COARSE_RADIUS` | `90` px | Coarse: Radius des Aufmerksamkeitskreises |
-| `GAZE_SMOOTHING_ALPHA` | `0.4` | EMA-Glättung des DL-Blickpunkts |
-
+| `YOLO_IMGSZ` | `960` | Bildgröße für die YOLO-Inferenz |
+| `YOLO_CONF` | `0.35` | minimale Konfidenz einer Detektion |
+| `EXACT_DIRECT_MAX_DIST` | `80 px` | maximale Distanz für eine direkte Auswahl |
+| `EXACT_AMBIGUITY_MARGIN` | `40 px` | Abstandsmarge für eine mehrdeutige Auswahl |
+| `COARSE_RADIUS` | `90 px` | Radius des Coarse-Gaze-Bereichs |
+| `GAZE_SMOOTHING_ALPHA` | `0.4` | Faktor für die EMA-Glättung |
 
 ---
 
 ## Tests
+
+Die Tests werden mit `pytest` ausgeführt:
 
 ```bash
 pip install pytest
 pytest -q
 ```
 
-Getestet werden die Auswahllogik (Exact/Coarse, alle drei Zustände, Grenzfälle)
-und die Kalibrierungs-Mathematik (Polynom-Fit, Speichern/Laden) – ohne YOLO/Kamera.
+Geprüft werden:
+
+- die Exact-Gaze-Auswahl
+- die Coarse-Gaze-Auswahl
+- die Zustände `direct`, `assisted` und `none`
+- Grenzfälle der Auswahl
+- der Polynom-Fit der Kalibrierung
+- das Speichern und Laden der Kalibrierungsdaten
+
+Für die Tests sind weder YOLO noch eine Kamera erforderlich.
 
 ---
 
-## DL-Blickquelle: Funktionsweise
+## Funktionsweise der DL-Blickquelle
 
-Appearance-based Deep-Learning-Blickschätzung: Ein vortrainiertes Netz schätzt die
-Blickrichtung direkt aus dem Gesichtsbild (robuster gegen Kopfbewegung/Licht als der
-frühere MediaPipe-Iris+KNN-Ansatz).
+Die Blickrichtung wird mit einem vortrainierten Deep-Learning-Modell aus dem Gesichtsbild geschätzt. Das Modell liefert die Blickwinkel `yaw` und `pitch`. Diese Werte werden geglättet und durch die Kalibrierung auf Bildschirmkoordinaten abgebildet.
 
-Pipeline pro Frame (`src/gaze/dl_gaze.py`):
+Ablauf pro Frame:
 
 ```text
-Frame -> RetinaFace (uniface): Gesicht finden
-      -> MobileGaze (uniface): (yaw, pitch) in Radiant
-      -> EMA-Glättung:         Zittern reduzieren
-      -> Kalibrierung:         (yaw, pitch) -> (x, y)    [Polynom 2. Grades]
-      => gaze_point = (x, y)
+Frame
+  -> RetinaFace: Gesicht erkennen
+  -> MobileGaze: yaw und pitch schätzen
+  -> EMA-Glättung: Schwankungen reduzieren
+  -> Kalibrierung: yaw und pitch auf x und y abbilden
+  -> gaze_point = (x, y)
 ```
 
-
+Die Zuordnung zu Bildschirmkoordinaten erfolgt mit einem Polynom zweiten Grades.
 
 ---
 
-## Abgrenzung (nicht Teil dieser Demo)
+## Abgrenzung
 
-Kein realer Roboterarm, keine Greifplanung, keine 3D-Lokalisierung, kein eigenes
-Detektor-Training, keine Nutzerstudie. Fokus: der Auswahlschritt.
+Nicht Bestandteil dieses Projekts sind:
 
+- die Steuerung eines realen Roboterarms
+- die Greifplanung
+- die 3D-Lokalisierung
+- das Training eines eigenen Objektdetektors
+- eine Nutzerstudie
 
+Untersucht wird ausschließlich die Zuordnung eines Blicksignals zu erkannten Objekten.
+
+---
 
 ## Referenzen
 
-- **yakhyo/gaze-estimation (MobileGaze)** – https://github.com/yakhyo/gaze-estimation (MIT)
-- **L2CS-Net** (Abdelrahman et al. 2022) – https://arxiv.org/abs/2203.03339
-- **Cheng et al. 2024**, Review appearance-based gaze estimation – https://arxiv.org/abs/2104.12668
-- **Fischer-Janzen et al. 2024**, Scoping Review (gaze/assistive arms) – https://doi.org/10.3389/frobt.2024.1326670
-- **Ultralytics YOLOv8** – https://github.com/ultralytics/ultralytics
-- Beispielbild `assets/test.jpg`: Ultralytics-Beispiel `bus.jpg`.
+- [yakhyo/gaze-estimation](https://github.com/yakhyo/gaze-estimation) – MobileGaze, MIT-Lizenz
+- [L2CS-Net](https://arxiv.org/abs/2203.03339) – Abdelrahman et al., 2022
+- [Appearance-based Gaze Estimation Review](https://arxiv.org/abs/2104.12668) – Cheng et al.
+- [Scoping Review zu Blicksteuerung und assistiven Roboterarmen](https://doi.org/10.3389/frobt.2024.1326670) – Fischer-Janzen et al., 2024
+- [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
+- Das Beispielbild `assets/test.jpg` basiert auf dem Ultralytics-Beispielbild `bus.jpg`.
