@@ -210,8 +210,6 @@ vor allem, wenn man den Kopf **bewegt** (bei ruhigem Kopf sind beide ähnlich).
 | `COARSE_RADIUS` | `90` px | Coarse: Radius des Aufmerksamkeitskreises |
 | `GAZE_SMOOTHING_ALPHA` | `0.4` | EMA-Glättung des DL-Blickpunkts |
 
-> Hinweis: Die Pixel-Werte hängen von der Bildgröße ab und sollten später
-> **relativ zur Bilddiagonale** normalisiert werden.
 
 ---
 
@@ -243,12 +241,7 @@ Frame -> RetinaFace (uniface): Gesicht finden
       => gaze_point = (x, y)
 ```
 
-Realistisch: Webcam ohne Infrarot → nicht pixelgenau (ein paar Grad Fehler), aber
-deutlich stabiler als der alte Ansatz. Deshalb **Coarse-Gaze als Sicherheitsnetz**
-behalten.
 
-> Nicht verwechseln: **GazeRecorder** ist kommerziell/proprietär. Hier wird das
-> freie, zitierbare Open-Source-Projekt **yakhyo/MobileGaze** (bzw. L2CS-Net) genutzt.
 
 ---
 
@@ -257,16 +250,7 @@ behalten.
 Kein realer Roboterarm, keine Greifplanung, keine 3D-Lokalisierung, kein eigenes
 Detektor-Training, keine Nutzerstudie. Fokus: der Auswahlschritt.
 
----
 
-## Nächste Schritte
-
-1. DL-Blickquelle mit echter Webcam kalibrieren und Stabilität prüfen
-   (Erfolgskriterium: Blickpunkt folgt dem Ziel ohne wildes Springen).
-2. Pixel-Schwellen relativ zur Bilddiagonale normalisieren.
-3. Optionaler Bild-Benchmark: simulierte Blickpunkte um Objekte, Vergleich Exact vs. Coarse.
-
----
 
 ## Referenzen
 

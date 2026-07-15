@@ -6,7 +6,7 @@ __pycache__/
 venv/
 env/
 
-# Modelle & Gewichte (laden automatisch – nicht versionieren)
+# Modelle & Gewichte 
 *.pt
 models/*.pt
 models/*.onnx
@@ -18,8 +18,8 @@ models/*.csv
 out*.jpg
 benchmark_results.md
 
-# --- Dokumentation / Berichte / Präsentation: NICHT ins GitHub-Repo ---
-# (nur der lauffähige Quellcode soll geteilt werden)
+
+
 *.docx
 *.pptx
 poster_*.pdf

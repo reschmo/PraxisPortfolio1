@@ -1,10 +1,5 @@
-# DL-Blickquelle (MobileGaze über uniface).
-# Darf in DIESELBE venv wie requirements.txt (Python 3.10+).
-# uniface[cpu] bringt onnxruntime mit; die Modellgewichte werden beim ersten
-# Start automatisch geladen (kein manueller Download nötig).
-uniface[cpu]        # für NVIDIA-GPU stattdessen: uniface[gpu]
 
-# opencv/numpy sind bereits über requirements.txt vorhanden – hier zur
-# Vollständigkeit, falls die Gaze-Umgebung getrennt aufgesetzt wird:
+uniface[cpu] 
+
 opencv-python>=4.8.0
 numpy>=1.24
